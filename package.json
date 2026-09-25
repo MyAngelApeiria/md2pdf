@@ -1,0 +1,25 @@
+{
+  "name": "md2pdf",
+  "version": "1.0.0",
+  "description": "Markdown 转 PDF 命令行工具，支持 LaTeX 数学公式（KaTeX）、代码高亮与中文排版",
+  "type": "module",
+  "bin": {
+    "md2pdf": "bin/md2pdf.js"
+  },
+  "scripts": {
+    "example": "node bin/md2pdf.js example.md"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "highlight.js": "^11.11.1",
+    "katex": "^0.16.22",
+    "markdown-it": "^14.1.0",
+    "markdown-it-anchor": "^9.2.0",
+    "markdown-it-footnote": "^4.0.0",
+    "markdown-it-task-lists": "^2.1.1",
+    "markdown-it-texmath": "^1.0.0",
+    "puppeteer-core": "^24.0.0"
+  }
+}

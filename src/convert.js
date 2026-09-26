@@ -3,8 +3,33 @@ import { promises as fs } from 'node:fs';
 import { renderMarkdown } from './markdown.js';
 import { buildHtml, getKatexDistDir } from './html.js';
 import { startStaticServer } from './server.js';
+import { fitImages } from './fit-images.js';
 
 const PAGE_FORMATS = new Set(['A3', 'A4', 'A5', 'Legal', 'Letter', 'Tabloid']);
+
+// 各页面格式的纵向尺寸（mm）
+const PAGE_SIZES = {
+  A3: [297, 420],
+  A4: [210, 297],
+  A5: [148, 210],
+  Letter: [215.9, 279.4],
+  Legal: [215.9, 355.6],
+  Tabloid: [279.4, 431.8],
+};
+// 打印边距（mm），与下方 pdfOptions.margin 对应，改一处需同步另一处
+const PAGE_MARGIN = { top: 18, bottom: 18, left: 16, right: 16 };
+
+// 页面内容区（扣除边距）的 CSS 像素尺寸：作为图片“最高一页”的兜底上限，
+// 以及 fitImages 分页预演所用的栏宽/栏高
+function pageContentBox(format, landscape) {
+  let [w, h] = PAGE_SIZES[format];
+  if (landscape) [w, h] = [h, w];
+  const px = (mm) => (mm / 25.4) * 96;
+  return {
+    width: px(w - PAGE_MARGIN.left - PAGE_MARGIN.right),
+    height: px(h - PAGE_MARGIN.top - PAGE_MARGIN.bottom),
+  };
+}
 
 const FOOTER_TEMPLATE = `
 <div style="width:100%; text-align:center; font-size:9px; color:#59636e;
@@ -70,6 +95,10 @@ export async function convertFile(input, opts, browser) {
   const { bodyHtml, firstHeading } = renderMarkdown(source);
   const title = opts.title || firstHeading || path.basename(input, path.extname(input));
 
+  // 图片“最高一页”的兜底上限（px），随页面格式/横竖向变化
+  const contentBox = pageContentBox(opts.format, opts.landscape);
+  const imgMaxHeightCss = `:root { --img-max-height: ${contentBox.height}px; }`;
+
   let extraCss = '';
   if (opts.css) {
     try {
@@ -78,6 +107,7 @@ export async function convertFile(input, opts, browser) {
       throw new Error(`无法读取自定义样式文件 ${opts.css}：${err.message}`);
     }
   }
+  extraCss = imgMaxHeightCss + '\n' + extraCss; // 自定义 CSS 仍可覆盖此变量
 
   const html = buildHtml({ title, bodyHtml: rewriteImages(bodyHtml, path.dirname(input)), extraCss });
   const output = path.resolve(
@@ -106,6 +136,9 @@ export async function convertFile(input, opts, browser) {
     }
     // 等待 KaTeX 字体就绪，避免公式字体缺失
     await page.evaluate(() => document.fonts.ready);
+
+    // 预演打印分页：压缩放不下的图片（等比，保持长宽比），避免跨页切割或大面积留白
+    await fitImages(page, contentBox);
 
     const pdfOptions = {
       path: output,

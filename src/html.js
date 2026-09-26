@@ -92,7 +92,13 @@ table {
 }
 th, td { border: 1px solid var(--border); padding: 0.4em 0.8em; }
 th { background: var(--bg-subtle); font-weight: 600; }
-img { max-width: 100%; }
+/* 超高图片等比缩放到一页内容区内（--img-max-height 由 convert.js 按页面格式注入），
+   否则打印分页会把图片切开横跨多页；放不下当前页剩余空间时整体移到下一页 */
+img {
+  max-width: 100%;
+  max-height: var(--img-max-height, none);
+  break-inside: avoid;
+}
 hr { border: 0; border-top: 1px solid var(--border); margin: 1.6em 0; }
 .katex { font-size: 1.06em; }
 .katex-display, .math-block { margin: 0.9em 0; break-inside: avoid; }
